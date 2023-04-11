@@ -96,7 +96,7 @@ class DAQ_2DViewer_AndorSCMOS(DAQ_Viewer_base):
 
 
             {'title': 'Temperature Settings:', 'name': 'temperature_settings', 'type': 'group', 'children': [
-                {'title': 'Enable Cooling:', 'name': 'enable_cooling', 'type': 'bool', 'value': True},
+                {'title': 'Enable Cooling:', 'name': 'enable_cooling', 'type': 'bool', 'value': False},
                 {'title': 'Set Point:', 'name': 'set_point', 'type': 'list', 'limits': []},
                 {'title': 'Current value:', 'name': 'current_value', 'type': 'float', 'value': 20, 'readonly': True},
                 {'title': 'Status:', 'name': 'status', 'type': 'list', 'limits': [], 'readonly': True},

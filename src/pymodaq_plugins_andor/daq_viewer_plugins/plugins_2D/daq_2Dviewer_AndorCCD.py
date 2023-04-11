@@ -10,8 +10,8 @@ from pymodaq.control_modules.viewer_utility_classes import DAQ_Viewer_base, como
 from pymodaq.daq_utils.daq_utils import ThreadCommand, DataFromPlugins, Axis, find_dict_in_list_from_key_val
 from pymodaq.daq_utils.parameter.utils import iter_children
 
-
 from pymodaq_plugins_andor.hardware.andor_sdk2 import sdk2
+
 libpath = sdk2.dllpath
 camera_list = sdk2.AndorSDK.GetCamerasInfo()
 
@@ -25,18 +25,18 @@ class Andor_Camera_ReadOut(IntEnum):
         *names*          string list of members
         =============== =======================
     """
-    
-    FullVertBinning=0
-    SingleTrack=3
-    MultiTrack=1
-    RandomTrack=2
-    Image=4
-    Cropped=5
 
+    FullVertBinning = 0
+    SingleTrack = 3
+    MultiTrack = 1
+    RandomTrack = 2
+    Image = 4
+    Cropped = 5
 
     @classmethod
     def names(cls):
         return [name for name, member in cls.__members__.items()]
+
 
 class Andor_Camera_AcqMode(IntEnum):
     """
@@ -52,7 +52,6 @@ class Andor_Camera_AcqMode(IntEnum):
     Kinetics = 3
     Fast_Kinetics = 4
     Run_till_abort = 5
-
 
     @classmethod
     def names(cls):
@@ -74,60 +73,69 @@ class DAQ_2DViewer_AndorCCD(DAQ_Viewer_base):
         utility_classes.DAQ_Viewer_base
     """
     callback_signal = QtCore.Signal()
-    hardware_averaging = True #will use the accumulate acquisition mode if averaging is neccessary
-    params = comon_parameters+[
+    hardware_averaging = True  # will use the accumulate acquisition mode if averaging is neccessary
+    params = comon_parameters + [
         {'title': 'Dll library:', 'name': 'andor_lib', 'type': 'browsepath', 'value': str(libpath)},
-        
+
         {'title': 'Camera Settings:', 'name': 'camera_settings', 'type': 'group', 'expanded': True, 'children': [
             {'title': 'Camera Models:', 'name': 'camera_model', 'type': 'list',
-                'limits': [f"{cam['model']}-{cam['serial']}" for cam in camera_list]},
+             'limits': [f"{cam['model']}-{cam['serial']}" for cam in camera_list]},
 
             {'title': 'Readout Modes:', 'name': 'readout', 'type': 'list', 'limits': Andor_Camera_ReadOut.names()[0:-1],
-                                            'value': 'FullVertBinning'},
-            {'title': 'Readout Settings:', 'name': 'readout_settings', 'type': 'group', 'children':[
+             'value': 'FullVertBinning'},
+            {'title': 'Readout Settings:', 'name': 'readout_settings', 'type': 'group', 'children': [
 
-                {'title': 'single Track Settings:', 'name': 'st_settings', 'type': 'group', 'visible': False, 'children':[
-                    {'title': 'Center pixel:', 'name': 'st_center', 'type': 'int', 'value': 1 , 'default':1, 'min':1},
-                    {'title': 'Height:', 'name': 'st_height', 'type': 'int', 'value': 1 , 'default':1, 'min':1},
-                ]},    
-                {'title': 'Multi Track Settings:', 'name': 'mt_settings', 'type': 'group', 'visible': False, 'children':[
-                    {'title': 'Ntrack:', 'name': 'mt_N', 'type': 'int', 'value': 1 , 'default':1, 'min':1},
-                    {'title': 'Height:', 'name': 'mt_height', 'type': 'int', 'value': 1 , 'default':1, 'min':1},
-                    {'title': 'Offset:', 'name': 'mt_offset', 'type': 'int', 'value': 1 , 'default':1, 'min':0},
-                    {'title': 'Bottom:', 'name': 'mt_bottom', 'type': 'int', 'value': 1 , 'default':1, 'min':0, 'readonly': True},
-                    {'title': 'Gap:', 'name': 'mt_gap', 'type': 'int', 'value': 1 , 'default':1, 'min':0, 'readonly': True},
-                ]},
-                {'title': 'Image Settings:', 'name': 'image_settings', 'type': 'group', 'visible': False, 'children':[
+                {'title': 'single Track Settings:', 'name': 'st_settings', 'type': 'group', 'visible': False,
+                 'children': [
+                     {'title': 'Center pixel:', 'name': 'st_center', 'type': 'int', 'value': 1, 'default': 1, 'min': 1},
+                     {'title': 'Height:', 'name': 'st_height', 'type': 'int', 'value': 1, 'default': 1, 'min': 1},
+                 ]},
+                {'title': 'Multi Track Settings:', 'name': 'mt_settings', 'type': 'group', 'visible': False,
+                 'children': [
+                     {'title': 'Ntrack:', 'name': 'mt_N', 'type': 'int', 'value': 1, 'default': 1, 'min': 1},
+                     {'title': 'Height:', 'name': 'mt_height', 'type': 'int', 'value': 1, 'default': 1, 'min': 1},
+                     {'title': 'Offset:', 'name': 'mt_offset', 'type': 'int', 'value': 1, 'default': 1, 'min': 0},
+                     {'title': 'Bottom:', 'name': 'mt_bottom', 'type': 'int', 'value': 1, 'default': 1, 'min': 0,
+                      'readonly': True},
+                     {'title': 'Gap:', 'name': 'mt_gap', 'type': 'int', 'value': 1, 'default': 1, 'min': 0,
+                      'readonly': True},
+                 ]},
+                {'title': 'Image Settings:', 'name': 'image_settings', 'type': 'group', 'visible': False, 'children': [
                     {'title': 'Binning along x:', 'name': 'bin_x', 'type': 'int', 'value': 1, 'default': 1, 'min': 1},
                     {'title': 'Binning along y:', 'name': 'bin_y', 'type': 'int', 'value': 1, 'default': 1, 'min': 1},
-                    {'title': 'Start x:', 'name': 'im_startx', 'type': 'int', 'value': 1 , 'default':1, 'min':0},
-                    {'title': 'End x:', 'name': 'im_endx', 'type': 'int', 'value': 1024 , 'default':1024, 'min':0},
-                    {'title': 'Start y:', 'name': 'im_starty', 'type': 'int', 'value': 1 , 'default':1, 'min':1},
-                    {'title': 'End y:', 'name': 'im_endy', 'type': 'int', 'value': 256, 'default':256, 'min':1,},
-                    ]},   
-            ]},            
-            {'title': 'Exposure (ms):', 'name': 'exposure', 'type': 'float', 'value': 0.01 , 'default':0.01, 'min': 0},
-            
-            {'title': 'Image size:', 'name': 'image_size', 'type': 'group', 'children':[
-                {'title': 'Nx:', 'name': 'Nx', 'type': 'int', 'value': 0, 'default':0 , 'readonly': True},
-                {'title': 'Ny:', 'name': 'Ny', 'type': 'int', 'value': 0 , 'default':0 , 'readonly': True},
+                    {'title': 'Start x:', 'name': 'im_startx', 'type': 'int', 'value': 1, 'default': 1, 'min': 0},
+                    {'title': 'End x:', 'name': 'im_endx', 'type': 'int', 'value': 1024, 'default': 1024, 'min': 0},
+                    {'title': 'Start y:', 'name': 'im_starty', 'type': 'int', 'value': 1, 'default': 1, 'min': 1},
+                    {'title': 'End y:', 'name': 'im_endy', 'type': 'int', 'value': 256, 'default': 256, 'min': 1, },
                 ]},
-            
-            {'title': 'Shutter Settings:', 'name': 'shutter', 'type': 'group', 'children':[
-                {'title': 'Open Shutter on:', 'name': 'shutter_type', 'type': 'list', 'value': 'high', 'limits': ['low', 'high']},
-                {'title': 'Shutter mode:', 'name': 'shutter_mode', 'type': 'list', 'value': 'Auto', 'limits': ['Auto', 'Always Opened', 'Always Closed', ]},
-                {'title': 'Closing time (ms):', 'name': 'shutter_closing_time', 'type': 'int', 'value': 0, 'tip': 'millisecs it takes to close'},
-                {'title': 'Opening time (ms):', 'name': 'shutter_opening_time', 'type': 'int', 'value': 10, 'tip': 'millisecs it takes to open'},
-                ]},
+            ]},
+            {'title': 'Exposure (ms):', 'name': 'exposure', 'type': 'float', 'value': 0.01, 'default': 0.01, 'min': 0},
+
+            {'title': 'Image size:', 'name': 'image_size', 'type': 'group', 'children': [
+                {'title': 'Nx:', 'name': 'Nx', 'type': 'int', 'value': 0, 'default': 0, 'readonly': True},
+                {'title': 'Ny:', 'name': 'Ny', 'type': 'int', 'value': 0, 'default': 0, 'readonly': True},
+            ]},
+
+            {'title': 'Shutter Settings:', 'name': 'shutter', 'type': 'group', 'children': [
+                {'title': 'Open Shutter on:', 'name': 'shutter_type', 'type': 'list', 'value': 'high',
+                 'limits': ['low', 'high']},
+                {'title': 'Shutter mode:', 'name': 'shutter_mode', 'type': 'list', 'value': 'Auto',
+                 'limits': ['Auto', 'Always Opened', 'Always Closed', ]},
+                {'title': 'Closing time (ms):', 'name': 'shutter_closing_time', 'type': 'int', 'value': 0,
+                 'tip': 'millisecs it takes to close'},
+                {'title': 'Opening time (ms):', 'name': 'shutter_opening_time', 'type': 'int', 'value': 10,
+                 'tip': 'millisecs it takes to open'},
+            ]},
             {'title': 'Temperature Settings:', 'name': 'temperature_settings', 'type': 'group', 'children': [
-                {'title': 'Set Point:', 'name': 'set_point', 'type': 'float', 'value': -60, 'default': -60},
+                {'title': 'Enable Cooling:', 'name': 'enable_cooling', 'type': 'bool', 'value': False},
+                {'title': 'Set Point:', 'name': 'set_point', 'type': 'float', 'value': 20, 'default': 20},
                 {'title': 'Current value:', 'name': 'current_value', 'type': 'float', 'value': 0, 'default': 0,
                  'readonly': True},
                 {'title': 'Locked:', 'name': 'locked', 'type': 'led', 'value': False, 'default': False,
                  'readonly': True},
             ]},
         ]},
-        ]
+    ]
 
     def __init__(self, parent=None, params_state=None):
 
@@ -167,20 +175,29 @@ class DAQ_2DViewer_AndorCCD(DAQ_Viewer_base):
             if param.name() == 'set_point':
                 self.camera_controller.SetTemperature(param.value())
 
-            elif param.name() == 'readout' or param.name() in iter_children(self.settings.child('camera_settings', 'readout_settings')):
+            elif param.name() == 'enable_cooling':
+                if param.value():  # Enable
+                    self.camera_controller.CoolerON()
+                else:
+                    self.camera_controller.CoolerOFF()
+
+            elif param.name() == 'readout' or param.name() in iter_children(
+                    self.settings.child('camera_settings', 'readout_settings')):
                 self.update_read_mode()
-                
+
             elif param.name() == 'exposure':
-                self.camera_controller.SetExposureTime(self.settings.child('camera_settings', 'exposure').value() / 1000) #temp should be in s
+                self.camera_controller.SetExposureTime(
+                    self.settings.child('camera_settings', 'exposure').value() / 1000)  # temp should be in s
                 (err, timings) = self.camera_controller.GetAcquisitionTimings()
-                self.settings.child('camera_settings', 'exposure').setValue(timings['exposure']*1000)
+                self.settings.child('camera_settings', 'exposure').setValue(timings['exposure'] * 1000)
                 QtWidgets.QApplication.processEvents()
                 self.get_exposure_ms()
 
             elif param.name() in iter_children(self.settings.child('camera_settings', 'shutter'), []):
                 self.set_shutter()
 
-            elif param.name() in iter_children(self.settings.child('camera_settings', 'readout_settings', 'image_settings')):
+            elif param.name() in iter_children(
+                    self.settings.child('camera_settings', 'readout_settings', 'image_settings')):
                 if self.settings.child('camera_settings', 'readout').value() == 'Image':
                     self.set_image_area()
 
@@ -212,53 +229,52 @@ class DAQ_2DViewer_AndorCCD(DAQ_Viewer_base):
         except Exception as e:
             self.emit_status(ThreadCommand('Update_Status', [str(e), 'log']))
 
-
     def update_read_mode(self):
         read_mode = Andor_Camera_ReadOut[self.settings.child('camera_settings', 'readout').value()].value
         err = self.camera_controller.SetReadMode(read_mode)
         if err != 'DRV_SUCCESS':
-            self.emit_status(ThreadCommand('Update_Status',[err,'log']))
+            self.emit_status(ThreadCommand('Update_Status', [err, 'log']))
         else:
             self.settings.child('camera_settings', 'readout_settings').show()
-            if read_mode == 0:#FVB:
+            if read_mode == 0:  # FVB:
                 self.settings.child('camera_settings', 'readout_settings').hide()
-                self.settings.child('camera_settings','image_size','Nx').setValue(self.CCDSIZEX)
-                self.settings.child('camera_settings','image_size','Ny').setValue(1)
+                self.settings.child('camera_settings', 'image_size', 'Nx').setValue(self.CCDSIZEX)
+                self.settings.child('camera_settings', 'image_size', 'Ny').setValue(1)
 
 
-            elif read_mode == 3: #single track
-                self.settings.child('camera_settings', 'readout_settings','mt_settings').hide()
-                self.settings.child('camera_settings', 'readout_settings','st_settings').show()
-                self.settings.child('camera_settings', 'readout_settings','image_settings').hide()
+            elif read_mode == 3:  # single track
+                self.settings.child('camera_settings', 'readout_settings', 'mt_settings').hide()
+                self.settings.child('camera_settings', 'readout_settings', 'st_settings').show()
+                self.settings.child('camera_settings', 'readout_settings', 'image_settings').hide()
 
                 err = self.set_single_track_area()
 
-            elif read_mode == 1: #multitrack
-                self.settings.child('camera_settings', 'readout_settings','mt_settings').show()
-                self.settings.child('camera_settings', 'readout_settings','st_settings').hide()
-                self.settings.child('camera_settings', 'readout_settings','image_settings').hide()
+            elif read_mode == 1:  # multitrack
+                self.settings.child('camera_settings', 'readout_settings', 'mt_settings').show()
+                self.settings.child('camera_settings', 'readout_settings', 'st_settings').hide()
+                self.settings.child('camera_settings', 'readout_settings', 'image_settings').hide()
 
                 err = self.set_multi_track_area()
 
 
 
-            elif read_mode == 2: #random
+            elif read_mode == 2:  # random
                 err = 'Random mode not implemented yet'
-                
-            elif read_mode == 4: #image
-                self.settings.child('camera_settings', 'readout_settings','mt_settings').hide()
-                self.settings.child('camera_settings', 'readout_settings','st_settings').hide()
-                self.settings.child('camera_settings', 'readout_settings','image_settings').show()
+
+            elif read_mode == 4:  # image
+                self.settings.child('camera_settings', 'readout_settings', 'mt_settings').hide()
+                self.settings.child('camera_settings', 'readout_settings', 'st_settings').hide()
+                self.settings.child('camera_settings', 'readout_settings', 'image_settings').show()
 
                 self.set_image_area()
 
-                
-            elif read_mode == 5: #croped
+
+            elif read_mode == 5:  # croped
                 err = 'Croped mode not implemented yet'
-            self.emit_status(ThreadCommand('Update_Status',[err,'log']))
-            
+            self.emit_status(ThreadCommand('Update_Status', [err, 'log']))
+
             (err, timings) = self.camera_controller.GetAcquisitionTimings()
-            self.settings.child('camera_settings', 'exposure').setValue(timings['exposure']*1000)
+            self.settings.child('camera_settings', 'exposure').setValue(timings['exposure'] * 1000)
 
             self.x_axis = self.get_xaxis()
             self.y_axis = self.get_yaxis()
@@ -286,19 +302,18 @@ class DAQ_2DViewer_AndorCCD(DAQ_Viewer_base):
 
         return err
 
-
     def set_image_area(self):
 
         binx = self.settings.child('camera_settings', 'readout_settings', 'image_settings', 'bin_x').value()
-        biny = self.settings.child('camera_settings', 'readout_settings','image_settings', 'bin_y').value()
+        biny = self.settings.child('camera_settings', 'readout_settings', 'image_settings', 'bin_y').value()
         startx = self.settings.child('camera_settings', 'readout_settings', 'image_settings', 'im_startx').value()
         endx = self.settings.child('camera_settings', 'readout_settings', 'image_settings', 'im_endx').value()
         starty = self.settings.child('camera_settings', 'readout_settings', 'image_settings', 'im_starty').value()
         endy = self.settings.child('camera_settings', 'readout_settings', 'image_settings', 'im_endy').value()
         err = self.camera_controller.SetImage(binx, biny, startx, endx, starty, endy)
         if err == 'DRV_SUCCESS':
-            self.settings.child('camera_settings', 'image_size', 'Nx').setValue(int((endx-startx+1)/binx))
-            self.settings.child('camera_settings', 'image_size', 'Ny').setValue(int((endy-starty+1)/biny))
+            self.settings.child('camera_settings', 'image_size', 'Nx').setValue(int((endx - startx + 1) / binx))
+            self.settings.child('camera_settings', 'image_size', 'Ny').setValue(int((endy - starty + 1) / biny))
 
         return err
 
@@ -395,11 +410,15 @@ class DAQ_2DViewer_AndorCCD(DAQ_Viewer_base):
             self.settings.child('camera_settings', 'temperature_settings', 'set_point').setLimits(
                 (temp_range[0], temp_range[1]))
 
-
         self.set_shutter()
 
-        if not self.camera_controller.IsCoolerOn():  # gets 0 or 1
+        # if not self.camera_controller.IsCoolerOn():  # gets 0 or 1
+        #     self.camera_controller.CoolerON()
+        enable = self.settings.child('camera_settings', 'temperature_settings', 'enable_cooling').value()
+        if enable:  # Enable
             self.camera_controller.CoolerON()
+        else:
+            self.camera_controller.CoolerOFF()
 
         self.camera_controller.SetTemperature(
             self.settings.child('camera_settings', 'temperature_settings', 'set_point').value())
@@ -413,21 +432,23 @@ class DAQ_2DViewer_AndorCCD(DAQ_Viewer_base):
         callback = AndorCallback(self.camera_controller.WaitForAcquisition)
         self.callback_thread = QtCore.QThread()
         callback.moveToThread(self.callback_thread)
-        callback.data_sig.connect(self.emit_data)  # when the wait for acquisition returns (with data taken), emit_data will be fired
+        callback.data_sig.connect(
+            self.emit_data)  # when the wait for acquisition returns (with data taken), emit_data will be fired
 
         self.callback_signal.connect(callback.wait_for_acquisition)
         self.callback_thread.callback = callback
         self.callback_thread.start()
 
-
     def set_shutter(self):
         typ = self.settings.child('camera_settings', 'shutter', 'shutter_type').opts['limits'].index(
-                                        self.settings.child('camera_settings', 'shutter', 'shutter_type').value())
+            self.settings.child('camera_settings', 'shutter', 'shutter_type').value())
         mode = self.settings.child('camera_settings', 'shutter', 'shutter_mode').opts['limits'].index(
-                                        self.settings.child('camera_settings', 'shutter', 'shutter_mode').value())
+            self.settings.child('camera_settings', 'shutter', 'shutter_mode').value())
 
-        self.camera_controller.SetShutter(typ, mode, self.settings.child('camera_settings', 'shutter', 'shutter_closing_time').value(),
-                                          self.settings.child('camera_settings', 'shutter', 'shutter_opening_time').value())
+        self.camera_controller.SetShutter(typ, mode, self.settings.child('camera_settings', 'shutter',
+                                                                         'shutter_closing_time').value(),
+                                          self.settings.child('camera_settings', 'shutter',
+                                                              'shutter_opening_time').value())
 
     def updated_timer(self):
         """
@@ -470,7 +491,7 @@ class DAQ_2DViewer_AndorCCD(DAQ_Viewer_base):
 
             self.emit_x_axis()
         else:
-            raise(Exception('controller not defined'))
+            raise (Exception('controller not defined'))
         return self.x_axis
 
     def get_yaxis(self):
