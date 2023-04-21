@@ -222,7 +222,7 @@ class DAQ_2DViewer_AndorCCD(DAQ_Viewer_base):
             self.camera_controller.GetAcquiredDataNumpy(self.data_pointer, sizex * sizey)
             self.data_grabed_signal.emit([DataFromPlugins(name='Camera',
                                                           data=[np.squeeze(
-                                                              self.data.reshape((sizey, sizex)).astype(np.float))],
+                                                              self.data.reshape((sizey, sizex)).astype(float))],
                                                           dim=self.data_shape)])
             QtWidgets.QApplication.processEvents()  # here to be sure the timeevents are executed even if in continuous grab mode
 
