@@ -1,14 +1,15 @@
 import platform
 import sys
+import os
 
 from easydict import EasyDict as edict
 import numpy as np
 from qtpy import QtWidgets, QtCore
 
-from pymodaq.control_modules.viewer_utility_classes import DAQ_Viewer_base
+from pymodaq.control_modules.viewer_utility_classes import DAQ_Viewer_base, main
 from pymodaq.utils.logger import set_logger, get_module_name
 from pymodaq.control_modules.viewer_utility_classes import comon_parameters
-from pymodaq.utils.data import DataFromPlugins, Axis
+from pymodaq.utils.data import Axis, DataFromPlugins, DataToExport
 from pymodaq.utils.daq_utils import ThreadCommand, find_dict_in_list_from_key_val, zeros_aligned
 from pymodaq.utils.parameter.utils import iter_children
 
@@ -17,10 +18,17 @@ from time import perf_counter
 logger = set_logger(get_module_name(__file__))
 libpath = '/'
 
+old_path = os.environ["PATH"]
+os.environ["PATH"] = old_path.replace('C:\\Program Files\\Andor SDK3\\win32;','')
+
 if plat.startswith('Windows'):
-    libpath = 'C:\\Program Files\\Andor SDK3\\win32'
+    if arch == '32bit':
+        libpath = 'C:\\Program Files\\Andor SDK3\\win32'
+    else:
+        libpath = 'C:\\Program Files\\Andor SOLIS'
     if libpath not in sys.path:
         sys.path.append(libpath)
+        os.add_dll_directory(libpath)
 
 try:
     from pymodaq_plugins_andor.hardware.andor_sdk3 import api, sdk3cam
@@ -59,7 +67,7 @@ class DAQ_2DViewer_AndorSCMOS(DAQ_Viewer_base):
 
         {'title': 'Camera Settings:', 'name': 'camera_settings', 'type': 'group', 'children': [
             {'title': 'Camera Models:', 'name': 'camera_model', 'type': 'list', 'limits': camera_list},
-            {'title': 'Exposure (ms):', 'name': 'exposure', 'type': 'float', 'value': 0.01, 'default': 0.01, 'min': 0},
+            {'title': 'Exposure (ms):', 'name': 'exposure', 'type': 'float', 'value': 1, 'default': 1, 'min': 0},
             {'title': 'Frame Rate (Hz):', 'name': 'frame_rate', 'type': 'float', 'value': 0., 'readonly': True},
             {'title': 'Number of buffer:', 'name': 'buffer_number', 'type': 'int', 'value': 10, 'min': 1},
             {'title': '', 'name': 'reset_buffers', 'type': 'bool_push', 'value': False, 'label': 'Reset Buffers'},
@@ -96,7 +104,7 @@ class DAQ_2DViewer_AndorSCMOS(DAQ_Viewer_base):
 
 
             {'title': 'Temperature Settings:', 'name': 'temperature_settings', 'type': 'group', 'children': [
-                {'title': 'Enable Cooling:', 'name': 'enable_cooling', 'type': 'bool', 'value': True},
+                {'title': 'Enable Cooling:', 'name': 'enable_cooling', 'type': 'bool', 'value': False},
                 {'title': 'Set Point:', 'name': 'set_point', 'type': 'list', 'limits': []},
                 {'title': 'Current value:', 'name': 'current_value', 'type': 'float', 'value': 20, 'readonly': True},
                 {'title': 'Status:', 'name': 'status', 'type': 'list', 'limits': [], 'readonly': True},
@@ -244,6 +252,7 @@ class DAQ_2DViewer_AndorSCMOS(DAQ_Viewer_base):
             --------
             daq_utils.ThreadCommand
         """
+        print('emit')
         try:
             buff_temp = buffer_pointer[0]
             self.current_buffer += 1
@@ -285,14 +294,24 @@ class DAQ_2DViewer_AndorSCMOS(DAQ_Viewer_base):
                 else:
                     #self.data += 1 / self.Naverage * data
                     if self.n_grabed_data == self.Naverage:
-                        self.data_grabed_signal.emit([
-                            DataFromPlugins(name=cam_name, data=[self.data], dim=self.data_shape)])
+                        self.dte_signal.emit(DataToExport('Andor',
+                                                               data=[DataFromPlugins(
+                                                                   name=self.settings.child('camera_settings',
+                                                                                            'camera_model').value(),
+                                                                   data=[self.data],
+                                                                   dim=self.data_shape,
+                                                                   axes=self.axes), ]))
 
                     elif self.n_grabed_data < self.Naverage:
-                        self.data_grabed_signal_temp.emit([
-                            DataFromPlugins(name=cam_name, data=[self.data * self.Naverage / self.n_grabed_data],
-                                            dim=self.data_shape)])
+                        self.dte_signal_temp.emit(DataToExport('Andor',
+                                                               data=[DataFromPlugins(
+                                                                   name=self.settings.child('camera_settings',
+                                                                                            'camera_model').value(),
+                                                                   data=[self.data * self.Naverage / self.n_grabed_data],
+                                                                   dim=self.data_shape,
+                                                                   axes=self.axes), ]))
             else:  # in live mode
+                print('living')
                 if perf_counter() - self.start_time > self.refresh_time_fr / 1000:  # refresh the frame rate every
                     # refresh_time_fr ms
                     self.settings.child('camera_settings',
@@ -301,17 +320,27 @@ class DAQ_2DViewer_AndorSCMOS(DAQ_Viewer_base):
                     self.n_grabed_frame_rate = 0
 
                 if self.n_grabed_data % self.Naverage == 0:
-                    self.data_grabed_signal.emit([
-                        DataFromPlugins(name=cam_name, data=[self.data], dim=self.data_shape)])
+                    print('yes')
+                    self.dte_signal.emit(DataToExport('Andor',
+                                                           data=[DataFromPlugins(
+                                                               name=self.settings.child('camera_settings',
+                                                                                        'camera_model').value(),
+                                                               data=[self.data],
+                                                               dim=self.data_shape,
+                                                               axes=self.axes), ]))
                 else:
                     if self.n_grabed_data % self.Naverage != 0:
                         n_grabed = self.n_grabed_data % self.Naverage
                     else:
                         n_grabed = self.Naverage
-                    self.data_grabed_signal_temp.emit([
-                        DataFromPlugins(name=cam_name,
-                                        data=[self.data * self.Naverage / n_grabed],
-                                        dim=self.data_shape)])
+                    self.dte_signal_temp.emit(DataToExport('Andor',
+                                                           data=[DataFromPlugins(
+                                                               name=self.settings.child('camera_settings',
+                                                                                        'camera_model').value(),
+                                                               data=[self.data * self.Naverage / n_grabed],
+                                                               dim=self.data_shape,
+                                                               axes=self.axes), ]))
+
 
             self.camera_controller.queue_single_buffer(self.buffers[self.current_buffer])
 
@@ -388,12 +417,14 @@ class DAQ_2DViewer_AndorSCMOS(DAQ_Viewer_base):
         # %%%%%%% init axes from image
         self.x_axis = self.get_xaxis()
         self.y_axis = self.get_yaxis()
-
-        self.data_grabed_signal_temp.emit([DataFromPlugins(name='Andor SCMOS',
-                                                           data=[np.zeros((len(self.y_axis), len(self.x_axis)))],
-                                                           dim='Data2D', labels=['dat0'],
-                                                           x_axis=self.x_axis,
-                                                           y_axis=self.y_axis), ])
+        self.axes = [self.x_axis, self.y_axis]
+        self.dte_signal_temp.emit(DataToExport('Andor',
+                                               data=[DataFromPlugins(
+                                                   name=self.settings.child('camera_settings',
+                                                                            'camera_model').value(),
+                                                   data=[np.zeros((len(self.y_axis), len(self.x_axis)))],
+                                                   dim='Data2D', labels=['dat0'],
+                                                   axes=self.axes), ]))
 
         self.emit_status(ThreadCommand('close_splash'))
 
@@ -523,9 +554,7 @@ class DAQ_2DViewer_AndorSCMOS(DAQ_Viewer_base):
         if self.camera_controller is not None:
             # if self.control_type == "camera":
             Nx = self.settings.child('camera_settings', 'image_size', 'Nx').value()
-            self.x_axis = Axis(data=np.linspace(0, Nx - 1, Nx, dtype=np.int), label='Pixels')
-
-            self.emit_x_axis()
+            self.x_axis = Axis(data=np.linspace(0, Nx - 1, Nx, dtype=int), label='Pixels')
         else:
             raise (Exception('controller not defined'))
         return self.x_axis
@@ -541,8 +570,7 @@ class DAQ_2DViewer_AndorSCMOS(DAQ_Viewer_base):
         """
         if self.camera_controller is not None:
             Ny = self.settings.child('camera_settings', 'image_size', 'Ny').value()
-            self.y_axis = Axis(data=np.linspace(0, Ny - 1, Ny, dtype=np.int), label='Pixels')
-            self.emit_y_axis()
+            self.y_axis = Axis(data=np.linspace(0, Ny - 1, Ny, dtype=int), label='Pixels')
         else:
             raise (Exception('Camera not defined'))
         return self.y_axis
@@ -566,7 +594,7 @@ class DAQ_2DViewer_AndorSCMOS(DAQ_Viewer_base):
 
         # %% Initialize data: self.data for the memory to store new data and self.data_average to store the average data
         image_size = sizex * sizey
-        self.data = np.zeros((sizey, sizex), dtype=np.float)
+        self.data = np.zeros((sizey, sizex), dtype=float)
 
         bufSize = self.camera_controller.ImageSizeBytes.getValue()
         if not self.buffers or self.buffers[0].size != bufSize or self._reset_buffers_cmd:
@@ -585,13 +613,27 @@ class DAQ_2DViewer_AndorSCMOS(DAQ_Viewer_base):
                 self.buffers_pointer.append(self.buffers[-1].ctypes.data)
                 self.camera_controller.queue_single_buffer(self.buffers[-1])
 
+        self.get_xaxis()
+
+        if sizey != 1:
+            data_shape = "Data2D"
+            self.get_yaxis()
+            axes = [self.x_axis, self.y_axis]
+        else:
+            data_shape = "Data1D"
+            # self.x_axis.index = 0
+            axes = [self.x_axis]
+
         data_shape = 'Data2D' if sizey != 1 else 'Data1D'
         if data_shape != self.data_shape:
             self.data_shape = data_shape
+            self.axes = axes
             # init the viewers
-            self.data_grabed_signal_temp.emit([DataFromPlugins(
-                name=self.settings.child('camera_settings', 'camera_model').value(),
-                data=[np.squeeze(self.data.reshape((sizex, sizey)).astype(np.float))], dim=self.data_shape)])
+            self.dte_signal_temp.emit(DataToExport('Andor',
+                                                   data=[DataFromPlugins(name=self.settings.child('camera_settings', 'camera_model').value(),
+                                                                         data=[np.squeeze(self.data.reshape((sizex, sizey)).astype(float))],
+                                                                         dim=self.data_shape, labels=['Camera'],
+                                                                         axes=self.axes), ]))
 
         return True
 
@@ -693,3 +735,5 @@ class AndorCallback(QtCore.QObject):
                 self.data_sig.emit([pData])
                 QtCore.QThread.msleep(wait_time)
 
+if __name__ == '__main__':
+    main(__file__, init=True)

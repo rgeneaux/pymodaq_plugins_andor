@@ -104,7 +104,8 @@ class ATEnum(ATProperty):
         return self.__getitem__(self.getIndex())
 
     def setString(self, val):
-        sdk3.SetEnumString(self.handle, self.propertyName, val)
+        if sdk3.IsImplemented(self.handle, self.propertyName):
+            sdk3.SetEnumString(self.handle, self.propertyName, val)
 
     def __len__(self):
         return sdk3.GetEnumCount(self.handle, self.propertyName).value
@@ -113,9 +114,12 @@ class ATEnum(ATProperty):
         return sdk3.GetEnumStringByIndex(self.handle, self.propertyName, key, 255).value
 
     def getAvailableValues(self):
-        n = sdk3.GetEnumCount(self.handle, self.propertyName).value
+        if sdk3.IsImplemented(self.handle, self.propertyName):
+            n = sdk3.GetEnumCount(self.handle, self.propertyName).value
 
-        return [sdk3.GetEnumStringByIndex(self.handle, self.propertyName, i, 255).value for i in range(n) if sdk3.IsEnumIndexAvailable(self.handle, self.propertyName, i).value]
+            return [sdk3.GetEnumStringByIndex(self.handle, self.propertyName, i, 255).value for i in range(n) if sdk3.IsEnumIndexAvailable(self.handle, self.propertyName, i).value]
+        else:
+            return []
 
 
 class ATCommand(ATProperty):
